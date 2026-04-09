@@ -1,4 +1,4 @@
-# 🦞 Model Runner
+#  Model Runner
 
 A self-hosted web application for uploading, managing, and running inference on ML models directly from your browser. Supports **GGUF** (llama.cpp), **ONNX**, and **HuggingFace Transformers** models.
 
