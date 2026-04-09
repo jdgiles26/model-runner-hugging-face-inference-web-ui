@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Runner — Inference Harness</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo">🦞</span>
+            <h1>Model Runner</h1>
+        </div>
+        <nav class="sidebar-nav">
+            <button class="nav-btn active" data-panel="chat">
+                <span class="nav-icon">💬</span> Chat
+            </button>
+            <button class="nav-btn" data-panel="generate">
+                <span class="nav-icon">⚡</span> Generate
+            </button>
+            <button class="nav-btn" data-panel="models">
+                <span class="nav-icon">📦</span> My Models
+            </button>
+            <button class="nav-btn" data-panel="upload">
+                <span class="nav-icon">📤</span> Upload
+            </button>
+            <button class="nav-btn" data-panel="huggingface">
+                <span class="nav-icon">🤗</span> HuggingFace
+            </button>
+            <button class="nav-btn" data-panel="settings">
+                <span class="nav-icon">⚙️</span> Settings
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <div id="systemStatus" class="status-indicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+            <div id="currentModel" class="current-model">
+                No model loaded
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- ========== Chat Panel ========== -->
+        <section id="panel-chat" class="panel active">
+            <div class="chat-container">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message system">
+                        <div class="message-content">
+                            Welcome to Model Runner! Upload or download a model, load it, then start chatting.
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-input-wrapper">
+                        <textarea
+                            id="chatInput"
+                            placeholder="Type a message... (Shift+Enter for new line)"
+                            rows="1"
+                        ></textarea>
+                        <button id="chatSendBtn" class="btn btn-primary" disabled>
+                            <span>Send</span>
+                        </button>
+                    </div>
+                    <div class="chat-controls">
+                        <label class="control-label">
+                            Temp: <input type="range" id="chatTemp" min="0" max="2" step="0.1" value="0.7">
+                            <span id="chatTempVal">0.7</span>
+                        </label>
+                        <label class="control-label">
+                            Max Tokens: <input type="range" id="chatMaxTokens" min="16" max="4096" step="16" value="512">
+                            <span id="chatMaxTokensVal">512</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="chatStream" checked>
+                            Streaming
+                        </label>
+                        <button id="chatClearBtn" class="btn btn-secondary btn-sm">Clear Chat</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== Generate Panel ========== -->
+        <section id="panel-generate" class="panel">
+            <div class="generate-container">
+                <h2>Text Generation</h2>
+                <div class="form-group">
+                    <label for="genPrompt">Prompt</label>
+                    <textarea id="genPrompt" rows="6" placeholder="Enter your prompt here..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="genMaxTokens">Max Tokens</label>
+                        <input type="number" id="genMaxTokens" value="256" min="1" max="8192">
+                    </div>
+                    <div class="form-group">
+                        <label for="genTemperature">Temperature</label>
+                        <input type="number" id="genTemperature" value="0.7" min="0" max="2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="genTopP">Top P</label>
+                        <input type="number" id="genTopP" value="0.9" min="0" max="1" step="0.05">
+                    </div>
+                    <div class="form-group">
+                        <label for="genTopK">Top K</label>
+                        <input type="number" id="genTopK" value="40" min="1" max="200">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="genStop">Stop Sequences (comma-separated)</label>
+                    <input type="text" id="genStop" placeholder="e.g. \n\n, User:, ###">
+                </div>
+                <div class="form-actions">
+                    <button id="genBtn" class="btn btn-primary" disabled>Generate</button>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="genStream" checked>
+                        Stream output
+                    </label>
+                </div>
+                <div id="genOutput" class="output-area">
+                    <div class="output-placeholder">Generated text will appear here...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== My Models Panel ========== -->
+        <section id="panel-models" class="panel">
+            <div class="models-container">
+                <div class="panel-header">
+                    <h2>My Models</h2>
+                    <button id="refreshModelsBtn" class="btn btn-secondary btn-sm">↻ Refresh</button>
+                </div>
+                <div id="modelsList" class="models-list">
+                    <div class="empty-state">
+                        <span class="empty-icon">📦</span>
+                        <p>No models yet. Upload a model file or download from HuggingFace.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== Upload Panel ========== -->
+        <section id="panel-upload" class="panel">
+            <div class="upload-container">
+                <h2>Upload Model</h2>
+                <p class="upload-description">
+                    Upload model files (.gguf, .onnx, .bin, .safetensors) directly from your computer.
+                </p>
+                <div
+                    id="dropZone"
+                    class="drop-zone"
+                >
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📁</span>
+                        <p>Drag & drop model files here</p>
+                        <p class="drop-subtext">or click to browse</p>
+                        <input type="file" id="fileInput" multiple accept=".gguf,.onnx,.bin,.safetensors,.json" hidden>
+                    </div>
+                </div>
+                <div id="uploadQueue" class="upload-queue">
+                    <!-- Upload items will be added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== HuggingFace Panel ========== -->
+        <section id="panel-huggingface" class="panel">
+            <div class="hf-container">
+                <h2>HuggingFace Hub</h2>
+                <div class="hf-search">
+                    <div class="search-input-wrapper">
+                        <input
+                            type="text"
+                            id="hfSearchInput"
+                            placeholder="Search models on HuggingFace..."
+                        >
+                        <button id="hfSearchBtn" class="btn btn-primary">Search</button>
+                    </div>
+                    <div class="hf-search-options">
+                        <label>
+                            Format filter:
+                            <select id="hfFormatFilter">
+                                <option value="">All formats</option>
+                                <option value="gguf">GGUF</option>
+                                <option value="onnx">ONNX</option>
+                                <option value="safetensors">Safetensors</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div id="hfResults" class="hf-results">
+                    <div class="empty-state">
+                        <span class="empty-icon">🤗</span>
+                        <p>Search for models on HuggingFace Hub</p>
+                    </div>
+                </div>
+
+                <!-- Model detail modal -->
+                <div id="hfModelDetail" class="hf-detail hidden">
+                    <div class="hf-detail-header">
+                        <h3 id="hfDetailName"></h3>
+                        <button id="hfDetailClose" class="btn btn-secondary btn-sm">✕</button>
+                    </div>
+                    <div id="hfDetailInfo" class="hf-detail-info"></div>
+                    <div class="hf-detail-actions">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="hfDownloadFormat">Download Format</label>
+                                <select id="hfDownloadFormat">
+                                    <option value="auto">Auto-detect</option>
+                                    <option value="gguf">GGUF</option>
+                                    <option value="onnx">ONNX</option>
+                                    <option value="safetensors">Safetensors (HF Transformers)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="hfSpecificFile">Specific File (optional)</label>
+                                <select id="hfSpecificFile">
+                                    <option value="">Download all matching files</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="hfToken">HF Token (for gated models)</label>
+                            <input type="password" id="hfToken" placeholder="hf_xxxx...">
+                        </div>
+                        <button id="hfDownloadBtn" class="btn btn-primary">Download Model</button>
+                    </div>
+                    <div id="hfDownloadProgress" class="hf-download-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <p class="progress-text">Downloading...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== Settings Panel ========== -->
+        <section id="panel-settings" class="panel">
+            <div class="settings-container">
+                <h2>Settings</h2>
+                <div class="settings-section">
+                    <h3>System Information</h3>
+                    <div id="systemInfo" class="system-info">
+                        Loading...
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Inference Defaults</h3>
+                    <div class="form-group">
+                        <label for="defaultNCtx">Context Size (n_ctx)</label>
+                        <input type="number" id="defaultNCtx" value="4096" min="256" max="131072">
+                    </div>
+                    <div class="form-group">
+                        <label for="defaultGpuLayers">GPU Layers (n_gpu_layers, -1 = all)</label>
+                        <input type="number" id="defaultGpuLayers" value="-1" min="-1" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="defaultDeviceMap">Device Map</label>
+                        <select id="defaultDeviceMap">
+                            <option value="auto">Auto</option>
+                            <option value="cpu">CPU Only</option>
+                            <option value="cuda">CUDA</option>
+                            <option value="mps">MPS (Apple Silicon)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>API Configuration</h3>
+                    <div class="form-group">
+                        <label for="apiBaseUrl">API Base URL</label>
+                        <input type="text" id="apiBaseUrl" value="">
+                    </div>
+                    <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
